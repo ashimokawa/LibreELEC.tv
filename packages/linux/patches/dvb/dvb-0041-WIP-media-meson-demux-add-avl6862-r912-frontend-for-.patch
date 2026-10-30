@@ -1,0 +1,74 @@
+From 6828dab7b351ee4a140298372cc1421351551c69 Mon Sep 17 00:00:00 2001
+From: Andreas Shimokawa <shimokawa@fsfe.org>
+Date: Fri, 30 Oct 2026 12:05:09 +0100
+Subject: [PATCH 2/3] WIP: media: meson-demux: add avl6862 + r912 frontend for
+ MECOOL KII Pro
+
+Signed-off-by: Andreas Shimokawa <shimokawa@fsfe.org>
+---
+ .../platform/amlogic/meson-demux/Kconfig      |  1 +
+ .../platform/amlogic/meson-demux/aml_dvb.c    | 22 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)
+
+diff --git a/drivers/media/platform/amlogic/meson-demux/Kconfig b/drivers/media/platform/amlogic/meson-demux/Kconfig
+index 2cc40f0..064f60c 100644
+--- a/drivers/media/platform/amlogic/meson-demux/Kconfig
++++ b/drivers/media/platform/amlogic/meson-demux/Kconfig
+@@ -9,6 +9,7 @@ config DVB_MESON
+ 	select DVB_ASCOT3 if MEDIA_SUBDRV_AUTOSELECT
+ 	select MEDIA_TUNER_MXL603 if MEDIA_SUBDRV_AUTOSELECT
+ 	select MEDIA_TUNER_MXL608 if MEDIA_SUBDRV_AUTOSELECT
++	select MEDIA_TUNER_R912 if MEDIA_SUBDRV_AUTOSELECT
+ 	help
+ 	  This is a DVB demux driver for Amlogic.
+ 
+diff --git a/drivers/media/platform/amlogic/meson-demux/aml_dvb.c b/drivers/media/platform/amlogic/meson-demux/aml_dvb.c
+index 15db641..523e64e 100644
+--- a/drivers/media/platform/amlogic/meson-demux/aml_dvb.c
++++ b/drivers/media/platform/amlogic/meson-demux/aml_dvb.c
+@@ -41,6 +41,7 @@
+ #include <dvb-frontends/ascot3.h>
+ #include <tuners/mxl603.h>
+ #include <tuners/mxl608.h>
++#include <tuners/r912.h>
+ #include "c_stb_define.h"
+ #include "c_stb_regs_define.h"
+ #include "aml_dvb.h"
+@@ -2414,6 +2415,16 @@ static struct avl6211_config avl6211cfg = {
+ 	.use_lnb_pin60 = 0,
+ };
+ 
++static struct avl6862_config avl6862cfg_r912 = {
++    .demod_address = 0x14,
++    .ts_serial = 0, /* parallel TS */
++    .dual_tuner =1,
++};
++
++static struct r912_config r912cfg = {
++    .i2c_address = 0x7a, /* candidate; still needs confirmation */
++};
++
+ static void aml_dvb_attach_frontends(struct aml_dvb *advb,
+ 				     struct dvb_adapter *padapter)
+ {
+@@ -2528,6 +2539,17 @@ static void aml_dvb_attach_frontends(struct aml_dvb *advb,
+ 					fe = NULL;
+ 				}
+ 			}
++		} else if (!strcmp(compat, "mecool,avl6862-r912")) {
++			dev_info(dev, "attaching DVB-T/T2/S/S2/C frontend (AVL6862 + R912)\n");
++			fe = avl6862_attach(&avl6862cfg_r912, i2c);
++
++			if (fe) {
++				if (!r912_attach(fe, &r912cfg, i2c)) {
++					dev_err(dev, "R912 tuner attach failed\n");
++					dvb_frontend_detach(fe);
++					fe = NULL;
++				}
++			}
+ 		} else {
+ 			dev_warn(dev, "unknown frontend compatible: %s\n",
+ 				 compat);
+-- 
+2.56.0
+

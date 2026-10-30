@@ -1,0 +1,91 @@
+From 6f30fb0bb76206d761bee105e8d48bf87633b6b3 Mon Sep 17 00:00:00 2001
+From: Andreas Shimokawa <shimokawa@fsfe.org>
+Date: Fri, 30 Oct 2026 12:09:30 +0100
+Subject: [PATCH 3/3] WIP: arm64: dts: amlogic: add DVB support to MECOOL KII
+ Pro
+
+Signed-off-by: Andreas Shimokawa <shimokawa@fsfe.org>
+---
+ .../meson-gxl-s905d-mecool-kii-pro.dts        | 64 +++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/amlogic/meson-gxl-s905d-mecool-kii-pro.dts b/arch/arm64/boot/dts/amlogic/meson-gxl-s905d-mecool-kii-pro.dts
+index a4fa186..bab0f98 100644
+--- a/arch/arm64/boot/dts/amlogic/meson-gxl-s905d-mecool-kii-pro.dts
++++ b/arch/arm64/boot/dts/amlogic/meson-gxl-s905d-mecool-kii-pro.dts
+@@ -50,8 +50,72 @@ led-blue {
+ 			panic-indicator;
+ 		};
+ 	};
++
++	soc {
++                demux: demux {
++                        compatible = "amlogic, dmx";
++                        interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>,
++                                     <GIC_SPI 5  IRQ_TYPE_EDGE_RISING>,
++                                     <GIC_SPI 53 IRQ_TYPE_EDGE_RISING>,
++                                     <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
++                                     <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
++                        interrupt-names = "demux0_irq", "demux1_irq",
++                                          "demux2_irq", "dvr0_irq",
++                                          "dvr1_irq";
++                };
++        };
++
++        dvb-demux {
++	        compatible = "amlogic,dvb-demux";
++	        reg = <0x0 0xc1105800 0x0 0x2000>,
++	              <0x0 0xc1108c40 0x0 0x100>;
++	        #address-cells = <1>;
++	        #size-cells = <0>;
++
++                status = "okay";
++                ts0 = "parallel";
++                ts0_control = <0x0>;
++                ts0_invert = <0x0>;
++                pinctrl-names = "p_ts0", "s_ts0";
++                pinctrl-0 = <&dvb_p_ts0_pins>;
++                pinctrl-1 = <&dvb_s_ts0_pins>;
++                dmx = <&demux>;
++
++                clocks = <&clkc CLKID_DEMUX
++                          &clkc CLKID_ASYNC_FIFO
++                          &clkc CLKID_AHB_ARB0
++                          &clkc CLKID_HIU_IFACE>;
++                clock-names = "demux", "asyncfifo",
++                              "ahbarb0", "uparsertop";
++
++                resets = <&reset RESET_DEMUX>,
++                         <&reset RESET_DEMUX_DES>,
++                         <&reset RESET_DEMUX_RESET_0>,
++                         <&reset RESET_DEMUX_RESET_1>,
++                         <&reset RESET_DEMUX_RESET_2>,
++                         <&reset RESET_PERIPHS_ASYNC_0>,
++                         <&reset RESET_PERIPHS_ASYNC_1>;
++                reset-names = "demux_rst", "des_rst", "demux0_rst",
++                              "demux1_rst", "demux2_rst",
++                              "async0_rst", "async1_rst";
++
++                dvb_t: frontend@0 {
++		        compatible = "mecool,avl6862-r912";
++                        i2c-bus = <&i2c_B>;
++			fec-reset-gpios = <&gpio GPIODV_13 GPIO_ACTIVE_HIGH>;
++			power-ctrl-gpios = <&gpio GPIODV_11 GPIO_ACTIVE_LOW>;
++                };
++        };
++
+ };
+ 
++&i2c_B {
++        status = "okay";
++        pinctrl-0 = <&i2c_b_pins>;
++        pinctrl-names = "default";
++};
++
++
+ &ethmac {
+ 	phy-mode = "rmii";
+ 	phy-handle = <&internal_phy>;
+-- 
+2.56.0
+
